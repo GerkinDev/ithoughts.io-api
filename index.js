@@ -8,6 +8,8 @@ const Diaspora = require( 'diaspora' );
 const DiasporaServer = require( 'diaspora-server' );
 const https = require('https');
 
+const sendMail = require('./sendMail');
+
 const config = require( process.env.ITHOUGHTS_CONFIG );
 
 const url = `${_.get(config.api, 'protocol', 'http')}://${ config.api.url }/`;
@@ -46,7 +48,7 @@ const ContactMail = Diaspora.declareModel('ContactMail', {
 		date: {
 			type: 'date',
 			required: true,
-			default: Date,
+			default: 'Diaspora::Date.now()',
 		}
 	},
 });
