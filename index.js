@@ -58,7 +58,7 @@ app.use((req, res, next) => {
 	res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
 	next();
 });
-const verifyRecaptcha = key => {
+const verifyRecaptcha = async key => {
 	return new Promise((resolve, reject) => {
 		https.get("https://www.google.com/recaptcha/api/siteverify?secret=" + process.env.ITHOUGHTS_RECAPTCHA_SECRET + "&response=" + key, function(res) {
 			let data = "";
@@ -88,13 +88,17 @@ app.use( DiasporaServer({
 			middlewares: {
 				// We know that all queries will concern only current session id, so we use the `all` middleware
 				all: false,
-				// On insertion, our ToDos must contain the session id
-				insert: (req, res, next) => {
+				async insert(req, res, next) {
 					const recaptcha = req.diasporaApi.body.recaptcha;
 					delete req.diasporaApi.body.recaptcha;
-					verifyRecaptcha(recaptcha).then(next).catch(() => {
+					try{
+						console.info(require('util').inspect(await sendMail.sendContactMail(req.diasporaApi.body), {colors: true, depth: 8}));
+						await verifyRecaptcha(recaptcha);
+						return next();
+					} catch(error){
+						console.error('Error during insert mail', error);
 						return res.status(403).send({message: 'Invalid recaptcha'});
-					});
+					};
 				},
 			},
 		},
