@@ -10,7 +10,7 @@ const https = require('https');
 
 const sendMail = require('./sendMail');
 
-const config = require( process.env.ITHOUGHTS_CONFIG );
+const config = require( process.env.CONFIG_FILE );
 
 const url = `${_.get(config.api, 'protocol', 'http')}://${ config.api.url }/`;
 
