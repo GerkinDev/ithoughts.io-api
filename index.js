@@ -1,31 +1,37 @@
 'use strict';
 
-require('dotenv').config();
-
+const fs = require('fs');
+const path = require('path');
 const express = require( 'express' );
 const _ = require( 'lodash' );
 const Diaspora = require( 'diaspora' );
 const DiasporaServer = require( 'diaspora-server' );
 const https = require('https');
 
-const sendMail = require('./sendMail');
+process.env.ITHOUGHTS_CONFIG_DIR = process.env.ITHOUGHTS_CONFIG_DIR || __dirname;
 
-const config = require( process.env.CONFIG_FILE );
+const MATCH_CONFIG_REGEX = /^(?!example)(.+)\.config\.js(?:on)?$/;
+// Load config
+const config = _(fs.readdirSync(process.env.ITHOUGHTS_CONFIG_DIR))
+	.filter(filename => filename.match(MATCH_CONFIG_REGEX))
+	.map(filename => _.get(filename.match(MATCH_CONFIG_REGEX), 1, false))
+	.reduce((accumulator, baseName) => _.assign(accumulator, {
+		apis: {
+			[baseName]: require(path.resolve(process.env.ITHOUGHTS_CONFIG_DIR, `${baseName}.config.json`))
+		},
+	}), _.assign({apis: {}}, require('./config.json')));
+console.log(config);
+
+const sendMail = require('./sendMail')(config);
 
 const url = `${_.get(config.api, 'protocol', 'http')}://${ config.api.url }/`;
 
 const app = new express();
 
 // Declare our data source in Diaspora
-Diaspora.createNamedDataSource( 'main', process.env.ITHOUGHTS_DATASOURCE_TYPE, {
-	username: process.env.ITHOUGHTS_DATASOURCE_USERNAME,
-	password: process.env.ITHOUGHTS_DATASOURCE_PASSWORD,
-	host: process.env.ITHOUGHTS_DATASOURCE_HOST,
-	database: process.env.ITHOUGHTS_DATASOURCE_DATABASE,
-	authSource: process.env.ITHOUGHTS_DATASOURCE_AUTH_SOURCE,
-});
+Diaspora.createNamedDataSource( 'main', config.datasource.type, config.datasource.config);
 // Declare our models in Diaspora
-const ContactMail = Diaspora.declareModel('ContactMail', {
+const ContactMails = _.mapValues(config.apis, (apiConfig, apiName) => Diaspora.declareModel(`ContactMail${apiName[0].toUpperCase() + apiName.slice(1)}`, {
 	sources: 'main',
 	attributes: {
 		senderMail: {
@@ -51,7 +57,7 @@ const ContactMail = Diaspora.declareModel('ContactMail', {
 			default: 'Diaspora::Date.now()',
 		}
 	},
-});
+}));
 
 app.use((req, res, next) => {
 	res.header("Access-Control-Allow-Origin", "*");
@@ -84,7 +90,7 @@ const verifyRecaptcha = async key => {
 // Create our API
 app.use( DiasporaServer({
 	models: {
-		ContactMail: {
+		"ContactMail*": {
 			middlewares: {
 				// We know that all queries will concern only current session id, so we use the `all` middleware
 				all: false,

@@ -5,7 +5,7 @@ RUN apk update \
 	npm install -g nodemon
 
 # Install and build the application
-COPY ./package.json /usr/src/app/package.json
+COPY ./*.json /usr/src/app/
 WORKDIR /usr/src/app
 RUN npm install --no-optional --unsafe-perm
 COPY . /usr/src/app

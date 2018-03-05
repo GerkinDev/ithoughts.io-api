@@ -12,7 +12,6 @@
 		"diaspora": "git+https://github.com/GerkinDev/diaspora.git",
 		"diaspora-mongo": "git+https://github.com/GerkinDev/diaspora-mongo.git",
 		"diaspora-server": "git+https://github.com/GerkinDev/diaspora-server.git",
-		"dotenv": "^4.0.0",
 		"express": "^4.16.2",
 		"https": "^1.0.0",
 		"nodemailer": "^4.4.1"
