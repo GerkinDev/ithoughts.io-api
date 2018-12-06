@@ -1,5 +1,0 @@
-{
-    "recaptcha_secret": "...",
-    "receiver": "mymail@mail.com",
-    "confirmationMail": true
-}

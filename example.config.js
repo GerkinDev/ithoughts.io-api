@@ -11,4 +11,15 @@ module.exports = {
 
     // Send a mail to the contact submitter. Boolean. Defaults to false.
     "confirmationMail": true,
+
+
+    /*"mailbot": {
+        "address": "",
+        "name": "iThoughts Mailbot 🤖"
+    },
+    "mailAccount": {
+        "user": "...",
+        "password": "...",
+        "host": "..."
+    }*/
 };

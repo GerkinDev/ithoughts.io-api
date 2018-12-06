@@ -9,18 +9,20 @@ const DiasporaServer = require( 'diaspora-server' );
 const https = require('https');
 
 process.env.ITHOUGHTS_CONFIG_DIR = process.env.ITHOUGHTS_CONFIG_DIR || __dirname;
+console.log(process.env.ITHOUGHTS_CONFIG_DIR)
 
 const MATCH_CONFIG_REGEX = /^(?!example)(.+)\.config\.js(?:on)?$/;
 // Load config
 const config = _(fs.readdirSync(process.env.ITHOUGHTS_CONFIG_DIR))
-	.filter(filename => filename.match(MATCH_CONFIG_REGEX))
-	.map(filename => _.get(filename.match(MATCH_CONFIG_REGEX), 1, false))
-	.reduce((accumulator, baseName) => _.assign(accumulator, {
-		apis: {
-			[baseName]: require(path.resolve(process.env.ITHOUGHTS_CONFIG_DIR, `${baseName}.config.json`))
-		},
-	}), _.assign({apis: {}}, require('./config.json')));
-console.log(config);
+    .filter(filename => !!filename.match(MATCH_CONFIG_REGEX))
+    .map(filename => ({
+        baseName: _.get(filename.match(MATCH_CONFIG_REGEX), 1),
+        filename,
+    }))
+    .compact()
+	.reduce((accumulator, desc) => _.merge(accumulator, { apis: {
+		[desc.baseName]: require(path.resolve(process.env.ITHOUGHTS_CONFIG_DIR, desc.filename))
+	}}), _.assign({apis: {}}, require('../config.json'), require('./config.json')));
 
 const sendMail = require('./sendMail')(config);
 
@@ -64,27 +66,28 @@ app.use((req, res, next) => {
 	res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
 	next();
 });
-const verifyRecaptcha = async key => {
+const verifyRecaptcha = async (key, targetSiteName) => {
+    const secret = config.apis[targetSiteName].recaptcha_secret;
 	return new Promise((resolve, reject) => {
-		https.get("https://www.google.com/recaptcha/api/siteverify?secret=" + process.env.ITHOUGHTS_RECAPTCHA_SECRET + "&response=" + key, function(res) {
-			let data = "";
-			res.on('data', chunk => data += chunk.toString());
-			res.on('end', () => {
-				try {
-					const parsedData = JSON.parse(data);
-					if(parsedData.success){
-						return resolve();
-					} else {
-						console.error('Invalid recaptcha response:', parsedData);
-						return reject();
-					}
-				} catch (e) {
-					console.error('Invalid recaptcha response:', data);
-					reject();
+		https.get("https://www.google.com/recaptcha/api/siteverify?secret=" + secret + "&response=" + key, function(res) {
+		let data = "";
+		res.on('data', chunk => data += chunk.toString());
+		res.on('end', () => {
+			try {
+				const parsedData = JSON.parse(data);
+				if(parsedData.success){
+					return resolve();
+				} else {
+					console.error('Invalid recaptcha response:', parsedData);
+					return reject(new Error('Invalid recaptcha response: ' + JSON.stringify(parsedData)));
 				}
-			});
+			} catch (e) {
+				console.error('Invalid recaptcha response:', e);
+				reject(e);
+			}
 		});
-	})
+	});
+})
 }
 
 // Create our API
@@ -96,10 +99,12 @@ app.use( DiasporaServer({
 				all: false,
 				async insert(req, res, next) {
 					const recaptcha = req.diasporaApi.body.recaptcha;
-					delete req.diasporaApi.body.recaptcha;
+                    delete req.diasporaApi.body.recaptcha;
+                    const model = req.diasporaApi.model;
+                    const targetSiteName = model.name.replace(/^ContactMail(.+)$/, '$1').toLowerCase();
 					try{
-						console.info(require('util').inspect(await sendMail.sendContactMail(req.diasporaApi.body), {colors: true, depth: 8}));
-						await verifyRecaptcha(recaptcha);
+						await verifyRecaptcha(recaptcha, targetSiteName);
+						await sendMail.sendContactMail(req.diasporaApi.body, targetSiteName);
 						return next();
 					} catch(error){
 						console.error('Error during insert mail', error);

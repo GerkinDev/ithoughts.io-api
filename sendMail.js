@@ -1,6 +1,8 @@
 'use strict';
 
 const nodemailer = require('nodemailer');
+const _ = require('lodash');
+const Promise = require('bluebird');
 
 const SENDER_TYPES = {
 	part: 'particulier',
@@ -8,7 +10,7 @@ const SENDER_TYPES = {
 };
 
 const generateTransport = (config) => nodemailer.createTransport({
-	host: 'mail.ithoughts.io',
+	host: config.mailAccount.host,
 	secure: false, // true for 465, false for other ports
 	auth: {
 		user: config.mailAccount.user,
@@ -21,7 +23,9 @@ const generateTransport = (config) => nodemailer.createTransport({
 
 module.exports = (config) => {
 	return {
-		sender: `"${config.mailbot.name}" <${config.mailbot.address}>`,
+        generateSenderLine(clientConfig){
+            return `"${clientConfig.mailbot.name}" <${clientConfig.mailbot.address}>`;
+        },
 		async sendTestMail(recipient, subject = 'Hello ✔', html = '<b>Hello world?</b>', text = 'Hello world?'){
 			return new Promise((resolve, reject) => {
 				// Generate test SMTP service account from ethereal.email
@@ -71,14 +75,14 @@ module.exports = (config) => {
 				confirmationMail: false,
 			});
 
-			const transporter = generateTransport();
+			const transporter = generateTransport(clientConfig);
 			const sendMail = Promise.promisify(transporter.sendMail, {
 				multiArgs: true
 			}).bind(transporter);
 
 			const operations = [
 				sendMail({
-					from: this.sender, // sender address
+					from: this.generateSenderLine(clientConfig), // sender address
 					to: clientConfig.receiver, // list of receivers
 					subject: `Nouveau message de contact de ${contactMail.senderName}`, // Subject line
 					text: `Un nouveau message de contact du ${SENDER_TYPES[contactMail.senderCategory]} "${contactMail.senderName}" a été reçu:
@@ -93,7 +97,7 @@ module.exports = (config) => {
 
 			if(clientConfig.confirmationMail){
 				operations.push(sendMail({
-					from: this.sender, // sender address
+					from: this.generateSenderLine(clientConfig), // sender address
 					to: contactMail.senderMail, // list of receivers
 					subject: 'Your contact form was submitted', // Subject line
 					text: `Your contact form was sent, you'll receive an answer quickly. Your message was:

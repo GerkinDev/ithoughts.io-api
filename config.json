@@ -1,18 +1,16 @@
 {
-    "api": {
-        "url": "localhost:4230",
-        "port": 4230
+    "apis": {
+        "ithoughts": {
+            "url": "localhost:3210",
+            "port": 3210
+        },
+        "azkali": {
+            "url": "localhost:3210",
+            "port": 3210
+        }
     },
     "datasource": {
         "type": "inMemory",
         "config": {}
-    },
-    "mailbot": {
-        "address": "",
-        "name": "iThoughts Mailbot 🤖"
-    },
-    "mailAccount": {
-        "user": "...",
-        "password": "..."
     }
 }
